@@ -537,8 +537,184 @@ console.log(curried(1, 2)(3)) // 6
 + 这是一种对函数参数的缓存
 + 让函数变得更加灵活，让函数的粒度更小
 + 可以把多元函数转换成一元函数(一个参数)，可以组合使用函数变成更加强大的函数
+### 函数组合
++ 纯函数和柯里化很容易写出洋葱代码 H(f(g(x)))
+  + 获取数组的最后一个元素再转换成大写字母 _.toUpper(_.first(_.reverse(arr)))
++ 函数组合可以让我们把细粒度的函数重新组成一个新的函数
+#### 管道
++ 给fn函数输入参数a，返回结果b，想象成数据a通过管道(函数)fn得到了数据b
 
+![image](./image/Pipeline1.jpg)
++ 当fn比较复杂时，可以把fn拆分成多个小函数，此时多了中间运行产生的m和n
 
+![image](./image/Pipeline2.jpg)
+```javascript
+fn = compose(f1, f2, f3)
+b = fn(a)
+```
+### 函数组合
+##### 实例
++ 可以重复多次使用
+```javascript
+// 执行顺序 从右到左
+function compose(f, g) {
+    return function (val) {
+        return f(g(val))
+    }
+}
+
+function reverse(arr) {
+    return arr.reverse()
+}
+
+function first(arr) {
+    return arr[0]
+}
+// 将多个函数组合成一个函数
+// 将一个函数的结果作为另一个函数的参数
+// 当最后一个函数被处理结束后会被返回最终结果
+const last = compose(first, reverse)
+
+const arr = [1,5,6,9]
+console.log(last(arr)) // 9
+```
+### Lodash中的组合函数
++ lodash中组合函数flow()或者flowRight()都可组合多个函数
++ flow()是从左往右执行
++ flowRight()是从右往左执行，使用的更多
+```javascript
+const _ = require('lodash')
+
+const reverse = arr => arr.reverse()
+const first = arr => arr[0]
+const toUpper = str => str.toUpperCase()
+
+const f = _.flowRight(toUpper, first, reverse)
+
+console.log(f(['tom', 'jerry', 'lucy'])) // LUCY
+```
+### 模拟函数组合原理
+```javascript
+// 模拟组合函数
+const reverse = arr => arr.reverse()
+const first = arr => arr[0]
+const toUpper = str => str.toUpperCase()
+
+function compose(...args) {
+    return function (value) {
+        // 反转数组并value作为参数输入到函数中
+        return args.reverse().reduce(function (acc, fn) {
+            return fn(acc)
+        }, value)
+    }
+}
+
+// 箭头函数写法
+const compose2 = (...args) => value => args.reverse().reduce((acc, fn) => fn(acc),value)
+
+const f2 = compose2(toUpper, first, reverse)
+
+console.log(f2(['tom', 'jerry', 'lucy'])) // LUCY
+```
+### 函数组合结合律
++ 函数组合要满足结合律
+  + 可以把f和g组合，还可以把g和h组合，结果都是一样的
+```javascript
+let f = compose(f, g, h)
+let associative = compose(compose(f, g), h)  === compose(f, compose(g, h)) // true
+```
+### 示例
+```javascript
+const _ = require('lodash')
+
+const f1 = _.flowRight(_.toUpper, _.first, _.reverse)
+
+const f2 = _.flowRight(_.flowRight(_.toUpper, _.first), _.reverse)
+
+const f3 = _.flowRight(_.toUpper, _.flowRight(_.first, _.reverse))
+
+console.log(f1(['one', 'two', 'three'])) // THREE
+console.log(f2(['one', 'two', 'three'])) // THREE
+console.log(f3(['one', 'two', 'three'])) // THREE
+```
+### 函数组合-调试
+##### 函数的结果与预期的不同，如何调试
+##### 因为组合函数都是由方法作为参数构成的，可以在一个方法的后面添加一个方法进行打印，通过辅助函数来了解每个函数输出后的结果
+```javascript
+const _ = require('lodash')
+
+const split = _.curry((sep, str) => _.split(str, sep))
+
+const join = _.curry((sep, arr) => _.join(arr, sep))
+
+const f = _.flowRight(join('-'), _.toLower, split(' '))
+console.log(f('Never Say Die')) // n-e-v-e-r-,-s-a-y-,-d-i-e
+
+const trace = _.curry((target, val) => {
+    console.log(target, val)
+    return val
+})
+const f2 = _.flowRight(join('-'), trace('toLowen 输出值：'), _.toLower,trace('split 输出值：'), split(' '))
+// split 输出值： [ 'Never', 'Say', 'Die' ]
+// toLowen 输出值： never,say,die
+// 根据打印结果显示：因为toLower结果为字符串，join需要的是数组，所以与预期返回值不同
+console.log(f2('Never Say Die')) 
+
+const map = _.curry((fn, arr) => _.map(arr, fn))
+const f3 = _.flowRight(join('-'), map(_.toLower), split(' '))
+console.log(f3('Never Say Die')) // never-say-die
+```
+### Lodash中的FP模块
++ lodash的fp模块提供了实用的对函数式编程友好的方法
++ 提供了不可变 auto-curried iteratee-first data-last 的方法
+```javascript
+// 函数在前数据往后
+const fp = require('lodash/fp')
+
+const f = fp.flowRight(fp.join('-'), fp.map(fp.toLower), fp.split(' '))
+
+console.log(f('NEVER SAY DIE')) // never-say-die
+```
+### lodash-map方法的问题
++ lodash-map 方法会传出三个参数被parseInt方法接收
++ lodash-fp-map 方法只会有一个参数被parseInt方法接收
+```javascript
+// lodash  数据优先  函数之后
+const _ = require('lodash')
+console.log(_.map(['23', '5', '31'], parseInt)) // [ 23, NaN, NaN ]
+// parseInt('23', 0, array) parseInt 第二个参数为转换成几进制 0 默认为十进制
+// parseInt('5', 1, array)  
+// parseInt('31', 2, array) 
+
+// lodash fp
+const fp = require('lodash/fp')
+// 处理的参数不同，只处理当前的值
+console.log(fp.map(parseInt, ['23', '5', '31'])) // [ 23, 5, 31 ]
+```
+## Point Free
++ Point Free:可以把数据处理的过程定义成与数据无关的合成运算，不需要用到代表数据的参数，只要把简单的运算步骤合在一起，在使用这种方法之前需要定义辅助的基本运算函数
+  + 不需要指明处理的数据
+  + 只需要合成运算过程
+  + 需要定义一些辅助的基本运算函数
+```javascript
+const fp = require('lodash/fp')
+
+const f = fp.flowRight(fp.replace(/\s+/g,'_'), fp.toLower)
+
+console.log(f('Hello World')) // hello_world
+```
+### Point Free 案例  worle wild web ==> W.W.W
+```javascript
+const fp = require('lodash/fp')
+// 分割字符串 => 转换大写 => 提取第一个字母 => 拼接成字符串  fp.map 遍历了两次  能将两步在同一步骤一起完成
+const firstLetterToUpper1 = fp.flowRight(fp.join('.'), fp.map(fp.first), fp.map(fp.toUpper), fp.split(' '))
+
+console.log(firstLetterToUpper1('worle wild web')) // W.W.W
+// 分割字符串 => 转换大写并提取第一个字母 => 拼接成字符串  fp.map 遍历了一次
+const firstLetterToUpper2 = fp.flowRight(fp.join('.'), fp.map(fp.flowRight(fp.first, fp.toUpper)), fp.split(' '))
+
+console.log(firstLetterToUpper2('worle wild web')) // W.W.W
+```
 
 
 

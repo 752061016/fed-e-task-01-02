@@ -19,5 +19,6 @@
   "homepage": "https://github.com/752061016/fed-e-task-01-02#readme",
   "dependencies": {
     "lodash": "^4.17.15"
-  }
+  },
+  "devDependencies": {}
 }
