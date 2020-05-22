@@ -544,10 +544,10 @@ console.log(curried(1, 2)(3)) // 6
 #### 管道
 + 给fn函数输入参数a，返回结果b，想象成数据a通过管道(函数)fn得到了数据b
 
-![image](./image/Pipeline1.jpg)
+![image](../image/Pipeline1.jpg)
 + 当fn比较复杂时，可以把fn拆分成多个小函数，此时多了中间运行产生的m和n
 
-![image](./image/Pipeline2.jpg)
+![image](../image/Pipeline2.jpg)
 ```javascript
 fn = compose(f1, f2, f3)
 b = fn(a)
@@ -715,6 +715,69 @@ const firstLetterToUpper2 = fp.flowRight(fp.join('.'), fp.map(fp.flowRight(fp.fi
 
 console.log(firstLetterToUpper2('worle wild web')) // W.W.W
 ```
+### 函子
+##### 为什么要学函子
++ 到目前为止已经学了函数式编程的基础，但还没有演示如何在函数式编程中把副作用控制在可控的范围内、异常处理、异步操作等
+##### 什么是Functor
++ 容器：包含值和值的变形关系(这个变形关系就是函数)
++ 函子：是一个特殊的容器，通过一个普通对象来实现，该对象具有map方法，map方法可以运行一个函数对值进行处理(变形关系)
++ 特点：
+  + 会保存创建时传入的value值并不会对外公布
+  + 由方法对value值进行处理或运算
+  + 处理结束后返回一个新的函子对象并把运算结果作为新对象的value值保存
+  + 可以重复使用方法对上个结果值进行处理
+```javascript
+class Container {
+    constructor (value) {
+        // 维护一个值 永远不对外公布
+        this._value = value
+    }
+    // 通过map方法传入的方法对value进行处理
+    // 并返回一个新的函子对象并保存结果值
+    map (fn) {
+        return new Container(fn(this._value))
+    }
+}
+
+// 创建一个函子对象，调用map方法，并返回一个新的函数对象
+// 因为返回值也是函子对象，所以可以使用链式的方法继续调用
+const result = new Container(5)
+    .map(x => x + 1) // 6
+    .map(x => x * x) // 36
+
+console.log(result) // Container { _value: 36 }
+
+// 创建静态方法来返回一个新的Container对象
+class Container2 {
+    constructor (value) {
+        this._value = value
+    }
+    map (fn) {
+        return Container.create(fn(this._value))
+    }
+    static create (value) {
+        return new Container(value)
+    }
+}
+
+const result2 = Container2.create(5)
+    .map(x => x * x) // 25
+    .map(x => x + 1) // 26
+
+console.log(result2) // Container { _value: 26 }
+```
+#### 总结
++ 函数式编程的运算不直接操作值，而是由函子完成
++ 函子就是一个实现了map契约的对象
++ 我们可以把函子想象成一个盒子，这个盒子里封装了一个值
++ 想要处理盒子中的值，想要给盒子的map方法传递一个处理值的函数(纯函数)，由这个还是来对值进行处理
++ 最终map方法返回一个包含新值的盒子(函子)
++ 但若是传入的值类型与预期不同，就会把函数变为不纯的(报错)，需要将这种情况控制在可控的范围内
+
+
+
+
+
 
 
 
