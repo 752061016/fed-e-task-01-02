@@ -773,13 +773,271 @@ console.log(result2) // Container { _value: 26 }
 + 想要处理盒子中的值，想要给盒子的map方法传递一个处理值的函数(纯函数)，由这个还是来对值进行处理
 + 最终map方法返回一个包含新值的盒子(函子)
 + 但若是传入的值类型与预期不同，就会把函数变为不纯的(报错)，需要将这种情况控制在可控的范围内
+### MayBe 函子
++ 在编程的过程中可能会遇到很多问题，需要对这些错误做相应的处理
++ MayBe 函子的作用就是可以对外部的空值情况做处理(控制副作用在允许的范围)
++ 优点：能在对数据处理前对数据进行判断
++ 缺点：若是存在多个回调，其中有回调返回的是null，不容易找到这个null是由哪段函数返回的
+```javascript
+class MayBe {
+    constructor (value) {
+        this._value = value
+    }
+    static create (value) {
+        return new MayBe(value)
+    }
+    map (fn) {
+        return this.isNothing() ? MayBe.create(null) : MayBe.create(fn(this._value))
+    }
+    // 判断方法的值是否为空值，为空值时不调用函数
+    isNothing () {
+        return this._value === null || this._value === undefined
+    }
+}
 
+const result = MayBe.create('Hello word')
+    .map(x => x.toUpperCase())
+console.log(result) // MayBe { _value: 'HELLO WORD' }
 
+// 接收一个null，这该值不会进行map中的处理，直接返回null
+const result2 = MayBe.create(null)
+    .map(x => x.toUpperCase())
+console.log(result2) // MayBe { _value: null }
 
+// 缺点：若是多次使用map，其中有一次返回值为null
+// 不容易判断该null是由哪个方法返回的
+const result3 = MayBe.create('Hello word')
+    .map(x => x.toUpperCase())
+    .map(x => null)
+    .map(x => x.split(''))
+console.log(result3) // MayBe { _value: null }
+```
+### Either 函子
++ Either 两者中的任何一个，类似于if...else...的处理
++ 异常会让函数变的不纯，Either函子可以用来做异常处理
+```javascript
+// Left 记录函子中的错误信息
+class Left {
+    constructor (value) {
+        this._value = value
+    }
+    static create (value) {
+        return new Left(value)
+    }
+    map (fn) {
+        return this
+    }
+}
+// Right 使用回调对数据进行正确的处理
+class Right {
+    constructor (value) {
+        this._value = value
+    }
+    static create (value) {
+        return new Right(value)
+    }
+    map (fn) {
+        return Right.create(fn(this._value))
+    }
+}
 
+function parentJSON(str) {
+    try {
+        return Right.create(JSON.parse(str))
+    }catch (e) {
+        return Left.create({error : e.message})
+    }
+}
 
+const result = parentJSON('{name: zxd}')
+.map(x => x.name.toUpperCase()) // 因为Left保存的是错误结果所以不会执行函数直接返回
+// 输出了Left 并保存的错误信息
+console.log(result) // Left { _value: { error: 'Unexpected token n in JSON at position 1' } }
 
+const result2 = parentJSON('{"name": "zxd"}')
+    .map(x => x.name.toUpperCase())
+// 输出了Rigt 并保存结果
+console.log(result2) // Right { _value: 'ZXD' }
+```
+### IO函子
++ IO 函子中的_value 是一个函数，这里把函数作为值来处理
++ IO 函子可以把不纯的函数存储到_value中，延迟执行这个不纯的操作(惰性操作)，包装当前的操作
++ 把不纯的操作交给调用者来处理
+```javascript
+const fp = require('lodash')
 
+class IO {
+    constructor (fn) {
+        this._value = fn
+    }
+    static create (value) {
+        return new IO (function () {
+            return value
+        })
+    }
+
+    map (fn) {
+        // 把两个函数组合起来作为新IO函数的值
+        return new IO(fp.flowRight(fn, this._value))
+    }
+}
+
+const result = IO.create(process)
+    .map(p => p.execPath) // 打印node的路径
+console.log(result) // IO { _value: [Function] }
+// 把不纯的操作延迟到执行时
+console.log(result._value()) // D:\node\node.exe
+```
+### folktale-Task
++ 异步任务的实现过于复杂，使用folktale中的Task演示
++ folktale是一个标准的函数式编程库
+  + 和lodash、ramda 不同的是，它没有提供很多功能函数
+  + 只提供了一些函数式处理的操作，例如：compose、curry等，一些函子Task、Either、MayBe等
+  + 快速安装： npm i folktale
+  + folktale 中的 compose 、 curry 使用
+```javascript
+const {compose, curry} = require('folktale/core/lambda')
+const {toUpper, first} = require('lodash/fp')
+
+// 第一个参数为参数的个数
+// 若传入的参数不满足这个个数则会返回一个新的函数
+// 若传入的参数达到这个个数则执行回调
+let f = curry(2, (x, y) => {
+    return x + y
+})
+
+console.log(f(1, 2)) // 3
+console.log(f(1)(2)) // 3
+
+let c = compose(toUpper, first)
+console.log(c(['hello','world'])) // HELLO
+```
++ Task 使用Task方法异步操作读取文本
+```javascript
+const fs = require('fs')
+const {task} = require('folktale/concurrency/task')
+const {split, find} = require('lodash/fp')
+
+function readFile(filename) {
+    return task(resolver => {
+        fs.readFile(filename, 'utf-8', (err, data) => {
+            if (err) resolver.reject(err)
+
+            resolver.resolve(data)
+        })
+    })
+}
+
+readFile('../../package.json')
+    // 使用map对数据进行处理
+    // 使用\n截取字符串
+    .map(split('\n'))
+    // 解析带有 version 的字符串
+    .map(find(x => x.includes('version')))
+    .run() // 开始执行
+    .listen({
+        // 设置失败回调
+        onRejected: err => {
+            console.log(err)
+        },
+        onResolved: value => {
+            console.log(value) // "version": "1.0.0",
+        }
+    })
+```
+### Pointed 函子
++ Pointed 函子是实现了of静态方法的函子
++ of方法是为了避免使用new来创建对象，更深层的含义是of方法用来把值放到上下文Context(把值放到容器中，使用map来处理值)
+### Monad (单子)
++ Monad函子是可以变扁的Pointed函子，IO(IO(x)),查看code-30
++ 如果一个函子具有join和of两个方法并遵守一些定律就是一个Monad
+```javascript
+const fp = require('lodash/fp')
+const fs = require('fs')
+
+class IO {
+    constructor (fn) {
+        this._value = fn
+    }
+    static create (value) {
+        return new IO (function () {
+            return value
+        })
+    }
+
+    map (fn) {
+        // 把两个函数组合起来作为新IO函数的值
+        return new IO(fp.flowRight(fn, this._value))
+    }
+    join () {
+        return this._value()
+    }
+    flatMap (fn) {
+        return this.map(fn).join()
+    }
+}
+
+let readFile = function (filename) {
+    return new IO (function () {
+        return fs.readFileSync(filename, 'utf-8')
+    })
+}
+
+let print = function (x) {
+    return new IO (function () {
+        console.log(x)
+        return x
+    })
+}
+
+// let cat = fp.flowRight(print, readFile)
+// // r 的结构为 IO(IO(x)) 
+// // ._value()执行外层的回调print中返回的IO里的函数
+// // 再._value()执行内层的回调readFile中返回的IO里的函数
+// // 缺点：若有多层嵌套需要多次使用._value方法进行回调
+// let r = cat('../../package.json')._value()._value()
+// console.log(r) // ...package.json
+
+// 读取文件操作：返回一个IO，将读取操作存入_value中，不会马上执行
+let r = readFile('../../package.json')
+    // .map(x => x.toUpperCase())
+    // 将读取文件操作_value方法及fp.toUpper方法合并新的方法并存入新的IO中
+    .map(fp.toUpper)
+    // 将新方法及print方法合并新的方法并存入新的IO中并执行,由print返回一个新的IO
+    .flatMap(print)
+    // 执行print返回的新的IO的函数方法
+    .join()
+
+console.log(r) // ...package.json
+```
+### 总结
++ 认识函数式编程
+  + 一种编程范式(思想)，跟面向对象编程是同一级别
+  + 核心思想：将运算过程抽象成函数，编程过程中面向函数进行编程
+  + Vue和React中使用了函数式编程，方便更好的理解与使用Vue和React
++ 函数相关复习
+  + 函数是一等公民
+    + 函数也是对象，可以像值一样处理
+    + 函数也可以作为另一个函数的参数或返回值
+  + 高阶函数：将函数作为参数或返回值，函数的柯里化和函数组合就是基于高阶函数
+  + 闭包，在函数内部返回一个函数，且可以调用外部函数内的变量
++ 函数式编程基础
+  + lodash：函数式编程库，提供了很多辅助式的方法
+  + 纯函数：给一个函数输入相同的参数总能得到相同的输出，并且没有任何的副作用 f(g(x))，优点：可缓存、可测试
+  + 柯里化：可以对函数进行降维处理，将多元函数转换成一元函数，方便函数组合的使用
+  + 管道：将一个函数想象成处理数据的管道，给管道输入一个数据，当数据进入这个管道后会得到一个相应的结果
+  + 函数组合：可以将多个函数组合成一个功能更加强大的函数
++ 函子
+  + 函子可以帮助我们控制副作用，进行异常处理，进行异步函数等等
+  + 概念：可以把函子想象成盒子，盒子中包裹着一个值，若想对这个值进行处理的话，需要调用这个盒子提供的map方法，map方法接收一个函数类型的参数，传递的函数就是处理值的函数
+  + Functor：函子的基本使用
+  + MayBe：帮助处理空值的异常，value保存的是值
+  + Either：帮助处理异常的函子，value保存的是值
+  + IO：value保存的是函数，可以延迟执行函数，使用IO可以控制副作用
+  + Task
+    + folktale：并没有提供功能性的方法，提供的方法都是方便函数式处理的
+    + Task函子：进行异步处理，帮助处理异步的任务
+  + Monad：帮助解决函子嵌套的问题
 
 
 

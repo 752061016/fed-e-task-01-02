@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/752061016/fed-e-task-01-02#readme",
   "dependencies": {
+    "folktale": "^2.3.2",
     "lodash": "^4.17.15"
   },
   "devDependencies": {}
