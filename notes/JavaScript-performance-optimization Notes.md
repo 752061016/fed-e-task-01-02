@@ -371,12 +371,159 @@ function getBtn2() {
     let obtn5 = obj.getElementById('btn5')
 }
 ```
+### 通过原型新增方法
+##### JavaScript中存在三种概念：原型对象，构造函数，实例对象，实例对象和构造函数都是可以指向原型对象的，如果某个构造函数内有个方法会被实例对象频繁的被调用，可以直接在原型对象上新增实例对象需要的方法，不同的方式的性能有所差异
+```javascript
+var fn1 = function () {
+    this.foo = function () {
+        console.log(1111)
+    }
+}
 
+let f1 = new fn1()
 
+// 性能上有所提高
+var fn2 = function () {}
+fn2.prototype.foo = function () {
+    console.log(1111)
+}
 
+let f2 = new fn2
+```
+### 避开闭包陷阱
+##### 关于闭包
++ 闭包是一种强大的语法
++ 闭包使用不当很容易出现内存泄漏
++ 不要为了闭包而闭包
+```javascript
+function test(fn) {
+    console.log(fn())
+}
 
+function test2(params) {
+    var name = 'lg'
+    return name
+}
 
+test(function () {
+    var name = 'lg'
+    return name
+})
 
+// 性能有所提高
+// 如果必须使用闭包那就使用闭包
+// 或者将闭包做的事重新定义成一个新的函数来传递，这样性能上会提高
+test(test2)
+```
+### 避免属性访问方法使用
+##### JavaScript中的面向对象
++ JS不需要属性的访问方法，所有的属性都是外部可见的
++ 使用属性访问方法只会增加一层重定义，没有访问的控制力
++ 不推荐属性访问方法，但若有必要添加则按实际情况而定
+```javascript
+function Person() {
+    this.mame = 'lg'
+    this.age = 25
+    this.getAge = function () {
+        return this.age
+    }
+}
 
+const p1 = new Person()
+const a1 = p1.getAge()
 
+// 所有的属性都是外部可见的，都可直接访问
+// 性能有所提高，不建议添加属性访问方法
+function Person2() {
+    this.mame = 'lg'
+    this.age = 25
+}
 
+const p2 = new Person2()
+const a2 = p2.age
+```
+### For循环优化
+##### 在for循环条件中的判断条件每次都会获取一次判断值的内容
+```javascript
+var arr = []
+arr[1000] = 'icoder'
+
+// 每次都需要获取arr数组的长度再进行判断，影响性能
+for (let i = 0; i < arr.length; i++) {
+    console.log(arr[i])
+}
+
+// 只获取一次arr数组的长度，性能有所提高
+for (let i = arr.length; i; i--) {
+    console.log(arr[i])
+}
+```
+### 采用最优循环方式
+##### 比较for forin forEach三种循环方式的效率
++ 若只是简单地循环数组推荐使用forEach
+```javascript
+var arr = new Array(1, 2, 3, 4, 5)
+
+// 性能最优
+arr.forEach(function (i) {
+    console.log(i)
+})
+
+// 性能第二
+for (let i = arr.length; i; i--) {
+    console.log(arr[i])
+}
+
+// 性能最差
+for (const i in arr) {
+    console.log(arr[i])
+}
+```
+### 节点添加优化
+##### 节点的添加操作必然会有回流和重绘，对代码的性能会有所影响
+```javascript
+for (let i = 0; i < 10; i++) {
+    var p = document.createElement('p')
+    p.innerHTML = i
+    document.body.appendChild(p)
+}
+
+// 先创建一个文档碎片，将节点添加到文档碎片中，最后将文档碎片添加到body中
+const fragEle = document.createDocumentFragment()
+
+for (let i = 0; i < 10; i++) {
+    var p = document.createElement('p')
+    p.innerHTML = i
+    fragEle.append(p)
+}
+
+document.body.appendChild(fragEle)
+```
+### 克隆优化节点操作
+##### 在需要新增节点的时候，先找到与其类似的已经存在的节点并克隆，再添加到页面中。优点：本身已经具备了一些样式和属性，不用再后续添加了
+```javascript
+for (let i = 0; i < 10; i++) {
+    const p = document.createElement('p')
+    p.innerHTML = i
+    document.body.appendChild(p)
+}
+
+// 先克隆一个节点，修改完部分属性后再添加到body中
+// 性能有所提升
+const oldP = document.getElementById('box1')
+for (let i = 0; i < 10; i++) {
+    const newP = oldP.cloneNode(false)
+    newP.innerHTML = i
+    document.body.appendChild(newP)
+}
+```
+### 直接量替换Object操作
+```javascript
+// 字面量替换new创建对性能有显著提升
+var a = [1, 2, 3]
+
+var a1 = new Array(3)
+a1[0] = 1
+a1[1] = 2
+a1[2] = 3
+```

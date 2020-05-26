@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <p id="box1">old</p>
+
+    <script>
+        for (let i = 0; i < 10; i++) {
+            const p = document.createElement('p')
+            p.innerHTML = i
+            document.body.appendChild(p)
+        }
+
+        // 先克隆一个节点，修改完部分属性后再添加到body中
+        // 性能有所提升
+        const oldP = document.getElementById('box1')
+        for (let i = 0; i < 10; i++) {
+            const newP = oldP.cloneNode(false)
+            newP.innerHTML = i
+            document.body.appendChild(newP)
+        }
+    </script>
+</body>
+</html>

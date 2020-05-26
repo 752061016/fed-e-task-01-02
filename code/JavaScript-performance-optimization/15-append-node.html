@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <script>
+        for (let i = 0; i < 10; i++) {
+            var p = document.createElement('p')
+            p.innerHTML = i
+            document.body.appendChild(p)
+        }
+
+        // 先创建一个文档碎片，将节点添加到文档碎片中，最后将文档碎片添加到body中
+        const fragEle = document.createDocumentFragment()
+
+        for (let i = 0; i < 10; i++) {
+            var p = document.createElement('p')
+            p.innerHTML = i
+            fragEle.append(p)
+        }
+
+        document.body.appendChild(fragEle)
+        
+    </script>
+</body>
+</html>
