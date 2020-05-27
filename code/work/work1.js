@@ -12,10 +12,12 @@ const cars = [
 let getInStock = fp.prop('in_stock')
 let isLastInStock = fp.flowRight(getInStock,fp.last)
 console.log(isLastInStock(cars)) // false
+
 // 2
 let getName = fp.prop('name')
 let getFirstName = fp.flowRight(getName,fp.first)
 console.log(getFirstName(cars)) // Ferrari FF
+
 // 3
 let _average = function (xs) {
     return fp.reduce(fp.add, 0, xs) / xs.length
@@ -26,11 +28,12 @@ let _average = function (xs) {
 //     }, cars)
 //     return _average(dollar_value)
 // }
-// let getDollarValue = fp.prop('dollar_value')
-let averageDollarValue = fp.flowRight(_average, fp.map(fp.prop('dollar_value')))
-console.log(averageDollarValue(cars))
+let getDollarValue = fp.prop('dollar_value')
+let averageDollarValue = fp.flowRight(_average, fp.map(getDollarValue))
+console.log(averageDollarValue(cars)) // 790700
+
 // 4
 let _underscore = fp.replace(/\W+/g, '_')
-let sanitizeNames = fp.map(fp.flowRight(fp.toLower,_underscore,fp.prop('name')))
-console.log(sanitizeNames(cars))
+let sanitizeNames = fp.map(fp.flowRight(fp.toLower,_underscore,getName))
+console.log(sanitizeNames(cars)) // ['ferrari_ff','spyker_c12_zagato','jaguar_xkr_s','audi_r8','aston_martin_one_77','pagani_huayra']
 
