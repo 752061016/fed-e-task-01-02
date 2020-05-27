@@ -11,11 +11,11 @@
 + 整理：将所有的标记活动对象进行移动整理，整理到连续的位置
 + 回收：将整理完后的非活动对象进行回收，回收相应的空间，放在空闲列表上，方便程序可以在这申请空间使用
 ## 3.描述V8中新生代存储器垃圾回收的流程
-+ 新生代内存分成了两个等大的空间，分别为使用空间和等闲空间
-+ 标记所有使用空间内的可达对象并整理到连续的位置
-+ 将使用空间内所有的可达对象进行复制，拷贝到等闲空间中
-+ 使用空间和等闲空间交换空间完成释放
-+ 若一轮GC还存活的新生代或等闲空间使用率超过25%则需要晋升，出现晋升会将新生代对象移动到老生代中
++ 新生代内存分成了两个等大的空间，分别为使用空间From和等闲空间To
++ 标记所有From空间内的可达对象并整理到连续的位置
++ 将From空间内所有的可达对象进行复制，拷贝到To空间中
++ From空间和To空间交换空间完成释放
++ 若一轮GC还存活的新生代或To空间使用率超过25%则需要晋升，出现晋升会将新生代对象移动到老生代中
 ## 4.描述增量标记算法在何时使用及工作原理
 + 使用：在V8老生代对象的垃圾回收标记时使用
 + 工作原理：增量标记可以不用一次性标记完所有的可达对象，程序运行与标记交替执行，每次标记一部分可达对象，等完全标记完可达对象后再进行垃圾回收操作
@@ -44,16 +44,16 @@ let isLastInStock = function (cars) {
 }
 ```
 ```javascript
-// 定义getInStock为获取对象中的in_stock属性
+// 定义getInStock方法为获取对象中的in_stock属性
 let getInStock = fp.prop('in_stock')
 // 使用fp.flowRight组合fp.last和getInStock方法，接受一个数组，找到数组中的最后一条数据的in_stock属性
 let isLastInStock = fp.flowRight(getInStock,fp.last)
 console.log(isLastInStock(cars)) // false
 ```
 ## 练习2
-### 使用fp.flowRoght(),fp.prop()和fp.first()获取第一个car的name
+### 使用fp.flowRight(),fp.prop()和fp.first()获取第一个car的name
 ```javascript
-// 定义getName为获取对象中的in_stock属性
+// 定义getName方法为获取对象中的name属性
 let getName = fp.prop('name')
 // 使用fp.flowRight组合fp.first和getName方法，接受一个数组，找到数组中的第一条数据的name属性
 let getFirstName = fp.flowRight(getName,fp.first)
@@ -75,7 +75,7 @@ let averageDollarValue = function (cars) {
 ```
 ```javascript
 // averageDollarValue方法为以数组形式输出cars数组中的dollar_value属性，并作为参数执行_average方法
-// 定义getDollarValue为获取对象中的dollar_value属性
+// 定义getDollarValue方法为获取对象中的dollar_value属性
 let getDollarValue = fp.prop('dollar_value')
 // 接受一个数组，遍历数组输出dollar_value属性，并与_average方法组合到一起
 let averageDollarValue = fp.flowRight(_average, fp.map(getDollarValue))
@@ -88,7 +88,7 @@ console.log(averageDollarValue(cars)) // 790700
 let _underscore = fp.replace(/\W+/g, '_') // 无须改动，并在sanitizeNames中使用它
 ```
 ```javascript
-// 定义getName为获取对象中的in_stock属性
+// 定义getName方法为获取对象中的in_stock属性
 let getName = fp.prop('name')
 // 使用fp.map对数组进行遍历操作，将getName,_underscore,fp.toLower三个方法组合一起作为遍历操作
 // 接受一个数组，遍历数组每个对象，使用getName获取name属性，再使用_underscore将空格替换成_,最后将字母小写并返回
